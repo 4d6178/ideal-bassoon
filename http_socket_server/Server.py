@@ -23,18 +23,17 @@ class HttpServer:
 
         while True:
 
-            c = HttpConnection(self.socket)
+            self.conn, self.addr = self.socket.accept()
+            self.conn.settimeout(0.5)
+            print "got connection from:", self.addr
+
+            c = HttpConnection(self.conn)
             c.connection()
 
             parse = HttpRequestParser(c.data)
-            parse.get_method()
-            parse.get_headers()
-            parse.get_body()
+            parse.get_request()
 
-            request = HttpRequest(parse.method,
-                                  parse.headers,
-                                  parse.body)
-            request.test()
+            parse.request.test()  # only for me
 
             c.conn.send(c.data)
             c.conn.close()
@@ -43,16 +42,13 @@ class HttpServer:
 class HttpConnection:
     """New connection."""
 
-    def __init__(self, socket):
+    def __init__(self, conn):
         """Constructor."""
-        self.socket = socket
-        self.conn, self.addr = self.socket.accept()
+        self.conn = conn
         self.data = ""
 
     def connection(self):
-        """Making new connection."""
-        print "got connection from:", self.addr
-        self.conn.settimeout(0.5)
+        """Read data from connection."""
         try:
             while True:
                 temp = self.conn.recv(1024)
@@ -62,7 +58,7 @@ class HttpConnection:
         except socket.timeout:
             pass
         print self.data
-        print self.data.split("\n\n")
+        print self.data.split("\n\n")  # only for me!
 
 
 class HttpRequest:
@@ -74,7 +70,7 @@ class HttpRequest:
         self.headers = headers
         self.body = body
 
-    def test(self):
+    def test(self):  # only for me!
         """Test."""
         print "-----------"
         print self.method
@@ -95,11 +91,11 @@ class HttpRequestParser:
         self.headers = {}
         self.body = []
 
-    def get_method(self):
+    def __get_method(self):
         """Method string."""
         self.method = self.head.split(" ")[0]
 
-    def get_headers(self):
+    def __get_headers(self):
         """Header dictionary."""
         for i in self.head.splitlines():
             try:
@@ -108,12 +104,21 @@ class HttpRequestParser:
             except IndexError:
                 pass
 
-    def get_body(self):
+    def __get_body(self):
         """Body list."""
         try:
             self.body = self.data.split("\r\n\r\n")[1]
         except IndexError:
             pass
+
+    def get_request(self):
+        """Make request."""
+        self.__get_method()
+        self.__get_headers()
+        self.__get_body()
+        self.request = HttpRequest(self.method,
+                                   self.headers,
+                                   self.body)
 
 s = HttpServer()
 s.serve()
